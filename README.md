@@ -23,6 +23,8 @@ flutter pub get
 flutter run
 ```
 
+Android 빌드는 Android Gradle Plugin `8.9.1`과 호환되도록 Gradle wrapper `8.11.1`을 사용합니다.
+
 ## 검증
 
 ```bash
