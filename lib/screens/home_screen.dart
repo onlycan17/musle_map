@@ -3,7 +3,11 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart'
+    show
+        FilteringTextInputFormatter,
+        LengthLimitingTextInputFormatter,
+        rootBundle;
 
 import '../data/back_muscles.dart';
 import '../data/front_muscles.dart';
@@ -386,9 +390,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 return;
               }
               if (inputBirthDate.trim().isNotEmpty && birthDate == null) {
-                setDialogState(
-                  () => errorText = '생년월일은 YYYY-MM-DD 형식으로 입력해주세요',
-                );
+                setDialogState(() => errorText = '생년월일은 숫자 8자리로 입력해주세요');
                 return;
               }
               Navigator.of(
@@ -398,44 +400,50 @@ class _HomeScreenState extends State<HomeScreen> {
 
             return AlertDialog(
               title: Text(title),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    autofocus: initialName.isEmpty,
-                    initialValue: initialName,
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: '이름',
-                      hintText: '예: 홍길동',
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      autofocus: initialName.isEmpty,
+                      initialValue: initialName,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: '이름',
+                        hintText: '예: 홍길동',
+                      ),
+                      onChanged: (value) {
+                        inputName = value;
+                        if (errorText != null) {
+                          setDialogState(() => errorText = null);
+                        }
+                      },
                     ),
-                    onChanged: (value) {
-                      inputName = value;
-                      if (errorText != null) {
-                        setDialogState(() => errorText = null);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    initialValue: initialBirthDate ?? '',
-                    keyboardType: TextInputType.datetime,
-                    textInputAction: TextInputAction.done,
-                    decoration: InputDecoration(
-                      labelText: '생년월일',
-                      hintText: '예: 1990-01-01',
-                      helperText: '선택 입력',
-                      errorText: errorText,
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      initialValue: initialBirthDate ?? '',
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(8),
+                      ],
+                      textInputAction: TextInputAction.done,
+                      decoration: InputDecoration(
+                        labelText: '생년월일',
+                        hintText: '예: 19900101',
+                        helperText: '숫자 8자리 입력',
+                        errorText: errorText,
+                      ),
+                      onChanged: (value) {
+                        inputBirthDate = value;
+                        if (errorText != null) {
+                          setDialogState(() => errorText = null);
+                        }
+                      },
+                      onFieldSubmitted: (_) => submit(),
                     ),
-                    onChanged: (value) {
-                      inputBirthDate = value;
-                      if (errorText != null) {
-                        setDialogState(() => errorText = null);
-                      }
-                    },
-                    onFieldSubmitted: (_) => submit(),
-                  ),
-                ],
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -454,22 +462,24 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _normalizeBirthDate(String value) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return null;
-    final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(trimmed);
-    if (match == null) return null;
+    final digits = trimmed.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length != 8) return null;
 
-    final year = int.tryParse(match.group(1)!);
-    final month = int.tryParse(match.group(2)!);
-    final day = int.tryParse(match.group(3)!);
+    final year = int.tryParse(digits.substring(0, 4));
+    final month = int.tryParse(digits.substring(4, 6));
+    final day = int.tryParse(digits.substring(6, 8));
     if (year == null || month == null || day == null) return null;
 
-    final parsed = DateTime.tryParse(trimmed);
+    final formatted =
+        '${digits.substring(0, 4)}-${digits.substring(4, 6)}-${digits.substring(6, 8)}';
+    final parsed = DateTime.tryParse(formatted);
     if (parsed == null ||
         parsed.year != year ||
         parsed.month != month ||
         parsed.day != day) {
       return null;
     }
-    return trimmed;
+    return formatted;
   }
 
   void _saveCurrentSnapshot() {
@@ -663,12 +673,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPortraitLayout(UserBodyProfile? profile, Offset? tapRef) {
-    return Column(
-      children: [
-        ..._buildControlWidgets(profile),
-        Expanded(child: _BodyStage(child: _buildBody())),
-        _buildInfoBar(tapRef),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Column(
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: constraints.maxHeight * 0.48,
+              ),
+              child: SingleChildScrollView(
+                child: Column(children: _buildControlWidgets(profile)),
+              ),
+            ),
+            Expanded(child: _BodyStage(child: _buildBody())),
+            _buildInfoBar(tapRef),
+          ],
+        );
+      },
     );
   }
 
@@ -1054,6 +1075,12 @@ class _ProfileBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selected = selectedProfile;
+    String profileLabel(UserBodyProfile profile) {
+      final birthDate = profile.birthDate;
+      if (birthDate == null) return profile.name;
+      return '${profile.name} ($birthDate)';
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
       child: Column(
@@ -1079,7 +1106,7 @@ class _ProfileBar extends StatelessWidget {
                             (profile) => DropdownMenuItem(
                               value: profile.id,
                               child: Text(
-                                profile.name,
+                                profileLabel(profile),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -1150,10 +1177,10 @@ class _MarkToolSwitcher extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: _ToolSegment(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final segments = [
+            _ToolSegment(
               label: '약한 근육',
               count: weakCount,
               icon: Icons.water_drop,
@@ -1161,10 +1188,7 @@ class _MarkToolSwitcher extends StatelessWidget {
               selected: selectedTool == MarkTool.weak,
               onTap: () => onChanged(MarkTool.weak),
             ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: _ToolSegment(
+            _ToolSegment(
               label: '풀 근육',
               count: releaseCount,
               icon: Icons.radio_button_checked,
@@ -1172,10 +1196,7 @@ class _MarkToolSwitcher extends StatelessWidget {
               selected: selectedTool == MarkTool.release,
               onTap: () => onChanged(MarkTool.release),
             ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: _ToolSegment(
+            _ToolSegment(
               label: '통증 점',
               count: painPointCount,
               icon: Icons.add_location_alt,
@@ -1183,8 +1204,30 @@ class _MarkToolSwitcher extends StatelessWidget {
               selected: selectedTool == MarkTool.painPoint,
               onTap: () => onChanged(MarkTool.painPoint),
             ),
-          ),
-        ],
+          ];
+
+          if (constraints.maxWidth >= 390) {
+            return Row(
+              children: [
+                for (var index = 0; index < segments.length; index += 1) ...[
+                  if (index > 0) const SizedBox(width: 6),
+                  Expanded(child: segments[index]),
+                ],
+              ],
+            );
+          }
+
+          final itemWidth = (constraints.maxWidth - 6) / 2;
+          return Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              SizedBox(width: itemWidth, child: segments[0]),
+              SizedBox(width: itemWidth, child: segments[1]),
+              SizedBox(width: constraints.maxWidth, child: segments[2]),
+            ],
+          );
+        },
       ),
     );
   }
