@@ -1,38 +1,36 @@
-# musle_map
+# 근육 학습 지도
 
-인체 정면/후면 라인 도식 위에 약한 근육과 통증 또는 과활성 근육을 표시하는 Flutter 앱입니다.
+인체 정면·후면 도식에서 근육의 위치와 명칭을 익히고 주석을 남기는 Flutter 해부학 학습 앱입니다.
 
 ## 주요 기능
 
-- 사용자 등록 및 사용자별 근육 표시 저장
-- 사용자 정보에서 선택 입력 생년월일 저장
-- 파란색: 약한 근육
-- 빨간색 채움: 풀어야 할 근육 또는 과활성 근육
-- 빨간색 원형 포인트: 정확한 통증 부위 표시
-- 정면/후면 근육 도식 전환
-- 현재 상태를 히스토리로 저장
-- 과거 기록을 현재 상태와 비교하거나 현재 상태로 복원
+- 파란색으로 학습 완료 근육 표시
+- 빨간색으로 관심 근육 표시
+- 도식 위에 학습 포인트 추가
+- 주제별 학습 노트와 학습 기록 저장
+- 이전 학습 기록 비교 및 복원
+- 정면·후면 근육 도식 전환
 - `shared_preferences` 기반 로컬 저장
 - 이미지 경계선 내부 픽셀 마스크 기준으로 색상 표시
+- 폰(최단 변 600 미만)은 세로 모드 고정이며, 웹 등 회전 잠금이 불가능한 환경에서는 가로 전환 시 세로 회전 안내를 표시
 - iPad/태블릿 가로 화면에서는 앱이 화면 전체를 사용하며 좌측 조작 패널과 우측 큰 인체 표시 영역으로 자동 전환
 
-## 실행
+## 실행 및 검증
 
 ```bash
 flutter pub get
-flutter run
-```
-
-Android 빌드는 Android Gradle Plugin `8.9.1`과 호환되도록 Gradle wrapper `8.11.1`을 사용합니다.
-
-## 검증
-
-```bash
 dart format lib test
 flutter analyze
 flutter test
 flutter build apk --debug
 ```
+
+Google Play 출시 빌드는 Android 16(API 36)을 대상으로 하며, 업로드 키 정보는
+`MUSCLE_MAP_UPLOAD_STORE_FILE`, `MUSCLE_MAP_UPLOAD_STORE_PASSWORD`,
+`MUSCLE_MAP_UPLOAD_KEY_ALIAS`, `MUSCLE_MAP_UPLOAD_KEY_PASSWORD` 환경 변수로
+전달해야 합니다. 저장소에 업로드 키나 비밀번호를 추가하지 마세요.
+
+스토어 등록 문구는 [`docs/PLAY_STORE_LISTING.md`](docs/PLAY_STORE_LISTING.md), 개인정보 처리 기준은 [`docs/PRIVACY_POLICY.md`](docs/PRIVACY_POLICY.md)에서 확인할 수 있습니다.
 
 ## 참고
 

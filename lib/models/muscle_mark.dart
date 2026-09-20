@@ -3,17 +3,6 @@ import 'body_view.dart';
 enum MarkTool { weak, release, painPoint }
 
 extension MarkToolLabel on MarkTool {
-  String get koreanLabel {
-    switch (this) {
-      case MarkTool.weak:
-        return '약한 근육';
-      case MarkTool.release:
-        return '풀어야 할 근육';
-      case MarkTool.painPoint:
-        return '통증 포인트';
-    }
-  }
-
   MuscleMarkType? get fillMarkType {
     switch (this) {
       case MarkTool.weak:
@@ -30,24 +19,6 @@ enum MuscleMarkType { weak, release }
 
 extension MuscleMarkTypeLabel on MuscleMarkType {
   String get storageKey => name;
-
-  String get koreanLabel {
-    switch (this) {
-      case MuscleMarkType.weak:
-        return '약한 근육';
-      case MuscleMarkType.release:
-        return '통증/과활성';
-    }
-  }
-
-  String get shortLabel {
-    switch (this) {
-      case MuscleMarkType.weak:
-        return '약화';
-      case MuscleMarkType.release:
-        return '통증';
-    }
-  }
 }
 
 typedef BodyMarkMap = Map<BodyView, Map<String, MuscleMarkType>>;
@@ -157,7 +128,7 @@ class BodyPainPoint {
   factory BodyPainPoint.create({required double x, required double y}) {
     final now = DateTime.now();
     return BodyPainPoint(
-      id: 'pain_${now.microsecondsSinceEpoch}',
+      id: 'annotation_${now.microsecondsSinceEpoch}',
       x: x,
       y: y,
       createdAt: now,
@@ -231,7 +202,6 @@ class UserBodyProfile {
   UserBodyProfile({
     required this.id,
     required this.name,
-    this.birthDate,
     required this.createdAt,
     required this.updatedAt,
     required this.marks,
@@ -241,7 +211,6 @@ class UserBodyProfile {
 
   final String id;
   String name;
-  String? birthDate;
   final DateTime createdAt;
   DateTime updatedAt;
   BodyMarkMap marks;
@@ -281,7 +250,6 @@ class UserBodyProfile {
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
-    'birthDate': birthDate,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
     'marks': bodyMarksToJson(marks),
@@ -289,12 +257,11 @@ class UserBodyProfile {
     'history': history.map((snapshot) => snapshot.toJson()).toList(),
   };
 
-  factory UserBodyProfile.create(String name, {String? birthDate}) {
+  factory UserBodyProfile.create(String name) {
     final now = DateTime.now();
     return UserBodyProfile(
       id: 'profile_${now.microsecondsSinceEpoch}',
       name: name,
-      birthDate: birthDate,
       createdAt: now,
       updatedAt: now,
       marks: emptyBodyMarks(),
@@ -310,8 +277,7 @@ class UserBodyProfile {
 
     return UserBodyProfile(
       id: '${json['id'] ?? DateTime.now().microsecondsSinceEpoch}',
-      name: '${json['name'] ?? '사용자'}',
-      birthDate: _nullableString(json['birthDate']),
+      name: '${json['name'] ?? '기본 학습 노트'}',
       createdAt: createdAt ?? DateTime.now(),
       updatedAt: updatedAt ?? DateTime.now(),
       marks: bodyMarksFromJson(json['marks']),
@@ -328,10 +294,4 @@ class UserBodyProfile {
           : <BodySnapshot>[],
     );
   }
-}
-
-String? _nullableString(Object? value) {
-  if (value is! String) return null;
-  final trimmed = value.trim();
-  return trimmed.isEmpty ? null : trimmed;
 }

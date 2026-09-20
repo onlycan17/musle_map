@@ -3,8 +3,8 @@ import 'package:musle_map/models/body_view.dart';
 import 'package:musle_map/models/muscle_mark.dart';
 
 void main() {
-  test('통증 포인트가 사용자 프로필과 히스토리에 저장된다', () {
-    final profile = UserBodyProfile.create('테스트 사용자');
+  test('학습 포인트가 학습 노트와 학습 기록에 저장된다', () {
+    final profile = UserBodyProfile.create('상체 근육 복습');
     profile.painPoints[BodyView.front]!.add(
       BodyPainPoint.create(x: 120, y: 240),
     );
@@ -20,14 +20,9 @@ void main() {
     expect(restoredProfile.totalCount, 1);
   });
 
-  test('사용자 생년월일은 선택 값으로 저장된다', () {
-    final profile = UserBodyProfile.create('기본 사용자', birthDate: '1990-01-01');
-    final restoredProfile = UserBodyProfile.fromJson(profile.toJson());
-    final emptyBirthDateProfile = UserBodyProfile.fromJson(
-      UserBodyProfile.create('생년월일 없음').toJson(),
-    );
+  test('학습 노트에는 개인 신상 정보가 저장되지 않는다', () {
+    final json = UserBodyProfile.create('기본 학습 노트').toJson();
 
-    expect(restoredProfile.birthDate, '1990-01-01');
-    expect(emptyBirthDateProfile.birthDate, isNull);
+    expect(json, isNot(contains('birthDate')));
   });
 }

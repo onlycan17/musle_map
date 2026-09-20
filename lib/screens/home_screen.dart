@@ -3,17 +3,16 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'
-    show
-        FilteringTextInputFormatter,
-        LengthLimitingTextInputFormatter,
-        rootBundle;
+import 'package:flutter/services.dart' show rootBundle;
 
 import '../data/back_muscles.dart';
 import '../data/front_muscles.dart';
+import '../data/region_names.dart';
+import '../l10n/app_localizations.dart';
 import '../models/body_view.dart';
 import '../models/muscle_mark.dart';
 import '../painters/body_painter.dart';
+import '../privacy_policy.dart';
 import '../services/profile_store.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -23,8 +22,22 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
+String _viewLabel(AppLocalizations l10n, BodyView view) =>
+    view == BodyView.front ? l10n.viewFront : l10n.viewBack;
+
+String _markTypeLabel(AppLocalizations l10n, MuscleMarkType type) =>
+    type == MuscleMarkType.weak ? l10n.markTypeWeak : l10n.markTypeRelease;
+
+String _toolLabel(AppLocalizations l10n, MarkTool tool) => switch (tool) {
+  MarkTool.weak => l10n.toolWeak,
+  MarkTool.release => l10n.toolRelease,
+  MarkTool.painPoint => l10n.toolPainPoint,
+};
+
 class _HomeScreenState extends State<HomeScreen> {
   final ProfileStore _profileStore = ProfileStore();
+
+  AppLocalizations get _l10n => AppLocalizations.of(context)!;
   late final Map<BodyView, BodyViewConfig> _configs;
   final Map<BodyView, ui.Image?> _images = {};
   final Map<BodyView, _RegionMask?> _regionMasks = {};
@@ -76,6 +89,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final regionId = _lastTappedRegionIds[_currentView];
     if (regionId == null) return null;
     return _currentMuscleMarks[regionId];
+  }
+
+  RegionInfo? get _lastTappedRegionInfo {
+    final regionId = _lastTappedRegionIds[_currentView];
+    if (regionId == null) return null;
+    final languageCode = Localizations.localeOf(context).languageCode;
+    final info = regionInfoFor(_currentView, regionId, languageCode);
+    return info.$1.isEmpty ? null : info;
   }
 
   int get _totalMarkCount => _selectedProfile?.totalCount ?? 0;
@@ -332,13 +353,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _showAddUserDialog() async {
-    final result = await _showProfileFormDialog(title: '사용자 등록');
+    final result = await _showProfileFormDialog(title: _l10n.noteAdd);
     if (result == null) return;
 
-    final profile = UserBodyProfile.create(
-      result.name,
-      birthDate: result.birthDate,
-    );
+    final profile = UserBodyProfile.create(result.name);
     setState(() {
       _profiles.add(profile);
       _selectedProfileId = profile.id;
@@ -353,49 +371,39 @@ class _HomeScreenState extends State<HomeScreen> {
     if (profile == null) return;
 
     final result = await _showProfileFormDialog(
-      title: '사용자 정보',
+      title: _l10n.noteInfo,
       initialName: profile.name,
-      initialBirthDate: profile.birthDate,
     );
     if (result == null) return;
 
     setState(() {
       profile.name = result.name;
-      profile.birthDate = result.birthDate;
       profile.updatedAt = DateTime.now();
     });
     await _persistProfiles();
-    _showSnackBar('사용자 정보를 저장했습니다');
+    _showSnackBar(_l10n.noteInfoSaved);
   }
 
   Future<_ProfileFormResult?> _showProfileFormDialog({
     required String title,
     String initialName = '',
-    String? initialBirthDate,
   }) async {
     var inputName = initialName;
-    var inputBirthDate = initialBirthDate ?? '';
     String? errorText;
 
     return showDialog<_ProfileFormResult>(
       context: context,
       builder: (context) {
+        final l10n = AppLocalizations.of(context)!;
         return StatefulBuilder(
           builder: (context, setDialogState) {
             void submit() {
               final name = inputName.trim();
-              final birthDate = _normalizeBirthDate(inputBirthDate);
               if (name.isEmpty) {
-                setDialogState(() => errorText = '이름을 입력해주세요');
+                setDialogState(() => errorText = _l10n.noteNameRequired);
                 return;
               }
-              if (inputBirthDate.trim().isNotEmpty && birthDate == null) {
-                setDialogState(() => errorText = '생년월일은 숫자 8자리로 입력해주세요');
-                return;
-              }
-              Navigator.of(
-                context,
-              ).pop(_ProfileFormResult(name: name, birthDate: birthDate));
+              Navigator.of(context).pop(_ProfileFormResult(name: name));
             }
 
             return AlertDialog(
@@ -407,35 +415,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     TextFormField(
                       autofocus: initialName.isEmpty,
                       initialValue: initialName,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: '이름',
-                        hintText: '예: 홍길동',
-                      ),
-                      onChanged: (value) {
-                        inputName = value;
-                        if (errorText != null) {
-                          setDialogState(() => errorText = null);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      initialValue: initialBirthDate ?? '',
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(8),
-                      ],
                       textInputAction: TextInputAction.done,
                       decoration: InputDecoration(
-                        labelText: '생년월일',
-                        hintText: '예: 19900101',
-                        helperText: '숫자 8자리 입력',
+                        labelText: _l10n.noteNameLabel,
+                        hintText: _l10n.noteNameHint,
+                        helperText: _l10n.noteNameHelper,
                         errorText: errorText,
                       ),
                       onChanged: (value) {
-                        inputBirthDate = value;
+                        inputName = value;
                         if (errorText != null) {
                           setDialogState(() => errorText = null);
                         }
@@ -448,9 +436,9 @@ class _HomeScreenState extends State<HomeScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('취소'),
+                  child: Text(l10n.cancel),
                 ),
-                FilledButton(onPressed: submit, child: const Text('저장')),
+                FilledButton(onPressed: submit, child: Text(l10n.save)),
               ],
             );
           },
@@ -459,34 +447,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  String? _normalizeBirthDate(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return null;
-    final digits = trimmed.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.length != 8) return null;
-
-    final year = int.tryParse(digits.substring(0, 4));
-    final month = int.tryParse(digits.substring(4, 6));
-    final day = int.tryParse(digits.substring(6, 8));
-    if (year == null || month == null || day == null) return null;
-
-    final formatted =
-        '${digits.substring(0, 4)}-${digits.substring(4, 6)}-${digits.substring(6, 8)}';
-    final parsed = DateTime.tryParse(formatted);
-    if (parsed == null ||
-        parsed.year != year ||
-        parsed.month != month ||
-        parsed.day != day) {
-      return null;
-    }
-    return formatted;
-  }
-
   void _saveCurrentSnapshot() {
     final profile = _selectedProfile;
     if (profile == null) return;
     if (profile.totalCount == 0) {
-      _showSnackBar('저장할 표시가 없습니다');
+      _showSnackBar(_l10n.nothingToSave);
       return;
     }
 
@@ -498,7 +463,7 @@ class _HomeScreenState extends State<HomeScreen> {
       profile.updatedAt = DateTime.now();
     });
     unawaited(_persistProfiles());
-    _showSnackBar('현재 상태를 히스토리에 저장했습니다');
+    _showSnackBar(_l10n.snapshotSaved);
   }
 
   void _applySnapshot(BodySnapshot snapshot) {
@@ -515,7 +480,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     unawaited(_refreshAllOverlays());
     unawaited(_persistProfiles());
-    _showSnackBar('선택한 기록을 현재 상태로 복원했습니다');
+    _showSnackBar(_l10n.snapshotRestored);
   }
 
   void _showHistorySheet() {
@@ -526,6 +491,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       showDragHandle: true,
       builder: (context) {
+        final l10n = AppLocalizations.of(context)!;
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
@@ -534,16 +500,16 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${profile.name} 히스토리',
+                  l10n.historyTitle(profile.name),
                   style: Theme.of(
                     context,
                   ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 10),
                 if (profile.history.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(child: Text('저장된 기록이 없습니다')),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: Text(l10n.noHistory)),
                   )
                 else
                   ConstrainedBox(
@@ -558,7 +524,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           contentPadding: EdgeInsets.zero,
                           title: Text(_formatDateTime(snapshot.createdAt)),
                           subtitle: Text(
-                            '약화 ${snapshot.weakCount} · 풀기 ${snapshot.releaseCount} · 통증점 ${snapshot.painPointCount}',
+                            '${l10n.learnedCount(snapshot.weakCount)} · '
+                            '${l10n.interestedCount(snapshot.releaseCount)} · '
+                            '${l10n.painPointCount(snapshot.painPointCount)}',
                           ),
                           trailing: Wrap(
                             spacing: 4,
@@ -569,10 +537,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                   setState(() => _baselineSnapshot = snapshot);
                                   unawaited(_refreshAllOverlays());
                                 },
-                                child: const Text('비교'),
+                                child: Text(l10n.compare),
                               ),
                               IconButton(
-                                tooltip: '현재 상태로 복원',
+                                tooltip: l10n.restoreTooltip,
                                 onPressed: () {
                                   Navigator.of(context).pop();
                                   _applySnapshot(snapshot);
@@ -613,7 +581,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     unawaited(_refreshOverlay(_currentView));
     unawaited(_persistProfiles());
-    _showSnackBar('${_currentView.koreanLabel} 표시를 지웠습니다');
+    _showSnackBar(_l10n.clearedView(_viewLabel(_l10n, _currentView)));
   }
 
   void _resetAllViews() {
@@ -632,7 +600,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     unawaited(_refreshAllOverlays());
     unawaited(_persistProfiles());
-    _showSnackBar('전체 표시를 지웠습니다');
+    _showSnackBar(_l10n.clearedAll);
   }
 
   void _showSnackBar(String message) {
@@ -655,6 +623,17 @@ class _HomeScreenState extends State<HomeScreen> {
             ? const Center(child: CircularProgressIndicator())
             : LayoutBuilder(
                 builder: (context, constraints) {
+                  final isLandscape =
+                      constraints.maxWidth > constraints.maxHeight;
+                  // 최단 변은 가용 크기(max) 기준 — min은 환경에 따라 0이 될 수 있음.
+                  final shortestSide =
+                      constraints.maxWidth < constraints.maxHeight
+                      ? constraints.maxWidth
+                      : constraints.maxHeight;
+                  // 폰 가로(웹 등 회전 잠금이 안 되는 환경)에서는 세로 회전을 안내.
+                  if (isLandscape && shortestSide < 600) {
+                    return _buildRotatePrompt();
+                  }
                   final useTabletLandscape =
                       constraints.maxWidth >= 840 &&
                       constraints.maxWidth > constraints.maxHeight;
@@ -668,6 +647,43 @@ class _HomeScreenState extends State<HomeScreen> {
                   return _buildPortraitLayout(profile, tapRef);
                 },
               ),
+      ),
+    );
+  }
+
+  Widget _buildRotatePrompt() {
+    final l10n = _l10n;
+    return ColoredBox(
+      color: const Color(0xFFFFF8F6),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.screen_rotation_alt,
+              size: 56,
+              color: const Color(0xFFD84A3A),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.rotatePromptTitle,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2B1D1B),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Text(
+                l10n.rotatePromptBody,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Color(0xFF8F2018)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -751,6 +767,7 @@ class _HomeScreenState extends State<HomeScreen> {
             setState(() => _calibrationMode = !_calibrationMode),
         onResetCurrent: _resetCurrentView,
         onResetAll: _resetAllViews,
+        onShowPrivacyPolicy: () => PrivacyPolicyDialog.show(context),
       ),
       _ProfileBar(
         profiles: _profiles,
@@ -788,6 +805,7 @@ class _HomeScreenState extends State<HomeScreen> {
       hasSelection: _lastTappedRegionIds[_currentView] != null,
       selectedTool: _selectedTool,
       muscleMarkType: _lastTappedMarkType,
+      regionInfo: _lastTappedRegionInfo,
       lastTapRef: tapRef,
       weakCount: _currentWeakCount,
       releaseCount: _currentReleaseCount,
@@ -926,10 +944,9 @@ class _OverlayRgba {
 }
 
 class _ProfileFormResult {
-  const _ProfileFormResult({required this.name, required this.birthDate});
+  const _ProfileFormResult({required this.name});
 
   final String name;
-  final String? birthDate;
 }
 
 class _AppHeader extends StatelessWidget {
@@ -940,6 +957,7 @@ class _AppHeader extends StatelessWidget {
     required this.onToggleCalibration,
     required this.onResetCurrent,
     required this.onResetAll,
+    required this.onShowPrivacyPolicy,
   });
 
   final BodyView currentView;
@@ -948,9 +966,11 @@ class _AppHeader extends StatelessWidget {
   final VoidCallback onToggleCalibration;
   final VoidCallback onResetCurrent;
   final VoidCallback onResetAll;
+  final VoidCallback onShowPrivacyPolicy;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     return Container(
       width: double.infinity,
@@ -994,7 +1014,7 @@ class _AppHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '근육 지도',
+                  l10n.appTitle,
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0,
@@ -1010,11 +1030,11 @@ class _AppHeader extends StatelessWidget {
                       icon: currentView == BodyView.front
                           ? Icons.front_hand
                           : Icons.accessibility_new,
-                      label: currentView.koreanLabel,
+                      label: _viewLabel(l10n, currentView),
                     ),
                     _StatusChip(
                       icon: Icons.touch_app,
-                      label: '표시 $totalMarkCount',
+                      label: l10n.marksCount(totalMarkCount),
                     ),
                   ],
                 ),
@@ -1022,26 +1042,31 @@ class _AppHeader extends StatelessWidget {
             ),
           ),
           _HeaderIconButton(
-            tooltip: calibrationMode ? '캘리브레이션 끄기' : '캘리브레이션 켜기',
+            tooltip: calibrationMode
+                ? l10n.calibrationOnTooltip
+                : l10n.calibrationOffTooltip,
             icon: calibrationMode ? Icons.grid_off : Icons.grid_on,
             selected: calibrationMode,
             onPressed: onToggleCalibration,
           ),
           const SizedBox(width: 6),
           PopupMenuButton<String>(
-            tooltip: '초기화',
+            tooltip: l10n.appMenuTooltip,
             onSelected: (value) {
               if (value == 'view') onResetCurrent();
               if (value == 'all') onResetAll();
+              if (value == 'privacy') onShowPrivacyPolicy();
             },
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'view',
-                child: Text('${currentView.koreanLabel}만 지우기'),
+                child: Text(l10n.clearViewOnly(_viewLabel(l10n, currentView))),
               ),
-              const PopupMenuItem(value: 'all', child: Text('전체 지우기')),
+              PopupMenuItem(value: 'all', child: Text(l10n.clearAll)),
+              const PopupMenuDivider(),
+              PopupMenuItem(value: 'privacy', child: Text(l10n.privacyPolicy)),
             ],
-            child: const _HeaderIconButtonShell(icon: Icons.refresh),
+            child: const _HeaderIconButtonShell(icon: Icons.more_vert),
           ),
         ],
       ),
@@ -1074,13 +1099,8 @@ class _ProfileBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final selected = selectedProfile;
-    String profileLabel(UserBodyProfile profile) {
-      final birthDate = profile.birthDate;
-      if (birthDate == null) return profile.name;
-      return '${profile.name} ($birthDate)';
-    }
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
       child: Column(
@@ -1106,7 +1126,7 @@ class _ProfileBar extends StatelessWidget {
                             (profile) => DropdownMenuItem(
                               value: profile.id,
                               child: Text(
-                                profileLabel(profile),
+                                profile.name,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -1121,25 +1141,25 @@ class _ProfileBar extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _SmallIconButton(
-                tooltip: '사용자 정보',
-                icon: Icons.manage_accounts,
+                tooltip: l10n.noteInfo,
+                icon: Icons.edit_note,
                 onPressed: onEditProfile,
               ),
               const SizedBox(width: 6),
               _SmallIconButton(
-                tooltip: '사용자 추가',
-                icon: Icons.person_add_alt_1,
+                tooltip: l10n.noteAdd,
+                icon: Icons.note_add_outlined,
                 onPressed: onAddProfile,
               ),
               const SizedBox(width: 6),
               _SmallIconButton(
-                tooltip: '현재 상태 기록',
+                tooltip: l10n.snapshotSaveTooltip,
                 icon: Icons.bookmark_add,
                 onPressed: onSaveSnapshot,
               ),
               const SizedBox(width: 6),
               _SmallIconButton(
-                tooltip: '히스토리 보기',
+                tooltip: l10n.snapshotViewTooltip,
                 icon: Icons.history,
                 onPressed: onShowHistory,
               ),
@@ -1148,7 +1168,9 @@ class _ProfileBar extends StatelessWidget {
           if (baselineSnapshot != null) ...[
             const SizedBox(height: 8),
             _CompareBanner(
-              label: '${_formatDateTime(baselineSnapshot!.createdAt)} 기록과 비교 중',
+              label: l10n.comparingWith(
+                _formatDateTime(baselineSnapshot!.createdAt),
+              ),
               onClear: onClearBaseline,
             ),
           ],
@@ -1175,13 +1197,14 @@ class _MarkToolSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final segments = [
             _ToolSegment(
-              label: '약한 근육',
+              label: l10n.toolWeak,
               count: weakCount,
               icon: Icons.water_drop,
               color: const Color(0xFF2577D9),
@@ -1189,7 +1212,7 @@ class _MarkToolSwitcher extends StatelessWidget {
               onTap: () => onChanged(MarkTool.weak),
             ),
             _ToolSegment(
-              label: '풀 근육',
+              label: l10n.toolRelease,
               count: releaseCount,
               icon: Icons.radio_button_checked,
               color: const Color(0xFFD84A3A),
@@ -1197,7 +1220,7 @@ class _MarkToolSwitcher extends StatelessWidget {
               onTap: () => onChanged(MarkTool.release),
             ),
             _ToolSegment(
-              label: '통증 점',
+              label: l10n.toolPainPoint,
               count: painPointCount,
               icon: Icons.add_location_alt,
               color: const Color(0xFFE53935),
@@ -1385,6 +1408,7 @@ class _CompareBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
@@ -1408,7 +1432,7 @@ class _CompareBanner extends StatelessWidget {
             ),
           ),
           IconButton(
-            tooltip: '비교 해제',
+            tooltip: l10n.compareOffTooltip,
             visualDensity: VisualDensity.compact,
             onPressed: onClear,
             icon: const Icon(Icons.close, size: 18),
@@ -1466,6 +1490,7 @@ class _ViewSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     return Container(
       width: double.infinity,
@@ -1491,7 +1516,7 @@ class _ViewSwitcher extends StatelessWidget {
             final count = markCounts[view] ?? 0;
             return Expanded(
               child: Tooltip(
-                message: '${view.koreanLabel} 보기',
+                message: l10n.viewTooltip(_viewLabel(l10n, view)),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(12),
                   onTap: () => onChanged(view),
@@ -1531,8 +1556,8 @@ class _ViewSwitcher extends StatelessWidget {
                         Flexible(
                           child: Text(
                             count > 0
-                                ? '${view.koreanLabel} $count'
-                                : view.koreanLabel,
+                                ? '${_viewLabel(l10n, view)} $count'
+                                : _viewLabel(l10n, view),
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.labelLarge?.copyWith(
                               color: selected
@@ -1618,6 +1643,7 @@ class _MissingAssetView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -1626,9 +1652,9 @@ class _MissingAssetView extends StatelessWidget {
           children: [
             const Icon(Icons.image_not_supported, size: 56, color: Colors.grey),
             const SizedBox(height: 16),
-            const Text(
-              '이미지 에셋이 없습니다',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Text(
+              l10n.missingAsset,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(assetPath, textAlign: TextAlign.center),
@@ -1650,6 +1676,7 @@ class _InfoBar extends StatelessWidget {
     required this.hasSelection,
     required this.selectedTool,
     required this.muscleMarkType,
+    required this.regionInfo,
     required this.lastTapRef,
     required this.weakCount,
     required this.releaseCount,
@@ -1662,6 +1689,7 @@ class _InfoBar extends StatelessWidget {
   final bool hasSelection;
   final MarkTool selectedTool;
   final MuscleMarkType? muscleMarkType;
+  final RegionInfo? regionInfo;
   final Offset? lastTapRef;
   final int weakCount;
   final int releaseCount;
@@ -1672,14 +1700,21 @@ class _InfoBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final hasPainPointSelection =
         !hasSelection &&
         selectedTool == MarkTool.painPoint &&
         lastTapRef != null;
     final subtitle = hasSelection
-        ? (muscleMarkType?.koreanLabel ?? '표시 없음')
-        : '${selectedTool.koreanLabel} 도구로 신체 부위를 탭하세요';
+        ? () {
+            final latin = regionInfo?.$2;
+            final mark = muscleMarkType == null
+                ? l10n.noMark
+                : _markTypeLabel(l10n, muscleMarkType!);
+            return latin == null ? mark : '$latin · $mark';
+          }()
+        : l10n.tapToMark(_toolLabel(l10n, selectedTool));
 
     return Container(
       width: double.infinity,
@@ -1736,10 +1771,12 @@ class _InfoBar extends StatelessWidget {
                   children: [
                     Text(
                       hasSelection
-                          ? '선택한 표시 영역'
+                          ? (regionInfo == null || regionInfo!.$1.isEmpty
+                                ? l10n.selectedRegion
+                                : regionInfo!.$1)
                           : hasPainPointSelection
-                          ? '통증 포인트'
-                          : '영역을 눌러보세요',
+                          ? l10n.studyPointTitle
+                          : l10n.pressToExplore,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleLarge?.copyWith(
@@ -1760,8 +1797,10 @@ class _InfoBar extends StatelessWidget {
                     if (showCoords && lastTapRef != null) ...[
                       const SizedBox(height: 6),
                       Text(
-                        '좌표: (${lastTapRef!.dx.toStringAsFixed(0)}, '
-                        '${lastTapRef!.dy.toStringAsFixed(0)})',
+                        l10n.coordinatesLabel(
+                          lastTapRef!.dx.toStringAsFixed(0),
+                          lastTapRef!.dy.toStringAsFixed(0),
+                        ),
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: const Color(0xFF1B5E20),
                           fontFamily: 'monospace',
@@ -1786,19 +1825,19 @@ class _InfoBar extends StatelessWidget {
               children: [
                 _HintPill(
                   icon: Icons.water_drop,
-                  label: '파란색: 약화',
+                  label: l10n.hintBlue,
                   color: const Color(0xFF2577D9),
                 ),
                 const SizedBox(width: 6),
                 _HintPill(
                   icon: Icons.radio_button_checked,
-                  label: isComparing ? '옅은 색: 이전' : '빨간색: 풀기',
+                  label: isComparing ? l10n.hintFaint : l10n.hintRed,
                   color: const Color(0xFFD84A3A),
                 ),
                 const SizedBox(width: 6),
                 _HintPill(
                   icon: Icons.add_location_alt,
-                  label: '점: 통증',
+                  label: l10n.hintDot,
                   color: const Color(0xFFD84A3A),
                 ),
               ],
@@ -1868,6 +1907,7 @@ class _MarkBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     return Container(
       constraints: const BoxConstraints(minWidth: 70),
@@ -1889,7 +1929,7 @@ class _MarkBadge extends StatelessWidget {
           ),
           const SizedBox(height: 3),
           Text(
-            '파랑/빨강/점',
+            l10n.badgeSummary,
             style: theme.textTheme.labelSmall?.copyWith(
               color: total > 0
                   ? Colors.white.withValues(alpha: 0.88)
