@@ -1,0 +1,152 @@
+{
+  "@@locale": "ko",
+  "appTitle": "근육 학습 지도",
+  "viewFront": "정면",
+  "viewBack": "후면",
+  "markTypeWeak": "학습 완료 근육",
+  "markTypeRelease": "관심 근육",
+  "markTypePainPoint": "학습 포인트",
+  "toolWeak": "학습 완료",
+  "toolRelease": "관심",
+  "toolPainPoint": "학습 포인트",
+  "noMark": "표시 없음",
+  "tapToMark": "{tool} 도구로 신체 부위를 탭하세요",
+  "@tapToMark": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "selectedRegion": "선택한 표시 영역",
+  "studyPointTitle": "학습 포인트",
+  "pressToExplore": "영역을 눌러보세요",
+  "coordinatesLabel": "좌표: ({x}, {y})",
+  "@coordinatesLabel": {
+    "placeholders": {
+      "x": {
+        "type": "String"
+      },
+      "y": {
+        "type": "String"
+      }
+    }
+  },
+  "hintBlue": "파란색: 학습 완료",
+  "hintRed": "빨간색: 관심",
+  "hintFaint": "옅은 색: 이전",
+  "hintDot": "점: 학습 주석",
+  "badgeSummary": "파랑/빨강/점",
+  "noteAdd": "학습 노트 추가",
+  "noteInfo": "학습 노트 정보",
+  "noteInfoSaved": "학습 노트 정보를 저장했습니다",
+  "noteNameRequired": "학습 노트 이름을 입력해주세요",
+  "noteNameLabel": "학습 노트 이름",
+  "noteNameHint": "예: 상체 근육 복습",
+  "noteNameHelper": "주제별로 학습 표시를 나누어 관리합니다",
+  "cancel": "취소",
+  "save": "저장",
+  "nothingToSave": "저장할 표시가 없습니다",
+  "snapshotSaved": "현재 표시를 학습 기록에 저장했습니다",
+  "snapshotRestored": "선택한 학습 기록을 현재 표시로 복원했습니다",
+  "historyTitle": "{name} 학습 기록",
+  "@historyTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "noHistory": "저장된 기록이 없습니다",
+  "compare": "비교",
+  "restoreTooltip": "현재 표시로 복원",
+  "clearedView": "{view} 표시를 지웠습니다",
+  "@clearedView": {
+    "placeholders": {
+      "view": {
+        "type": "String"
+      }
+    }
+  },
+  "clearedAll": "전체 표시를 지웠습니다",
+  "rotatePromptTitle": "화면을 세로로 돌려주세요",
+  "rotatePromptBody": "이 화면은 세로 모드에서 사용할 수 있어요.",
+  "marksCount": "표시 {count}",
+  "@marksCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calibrationOnTooltip": "캘리브레이션 끄기",
+  "calibrationOffTooltip": "캘리브레이션 켜기",
+  "appMenuTooltip": "앱 메뉴",
+  "clearViewOnly": "{view}만 지우기",
+  "@clearViewOnly": {
+    "placeholders": {
+      "view": {
+        "type": "String"
+      }
+    }
+  },
+  "clearAll": "전체 지우기",
+  "privacyPolicy": "개인정보 처리방침",
+  "snapshotSaveTooltip": "학습 기록 저장",
+  "snapshotViewTooltip": "학습 기록 보기",
+  "comparingWith": "{time} 학습 기록과 비교 중",
+  "@comparingWith": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "compareOffTooltip": "비교 해제",
+  "viewTooltip": "{view} 보기",
+  "@viewTooltip": {
+    "placeholders": {
+      "view": {
+        "type": "String"
+      }
+    }
+  },
+  "missingAsset": "이미지 에셋이 없습니다",
+  "learnedCount": "학습 완료 {count}",
+  "@learnedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "interestedCount": "관심 {count}",
+  "@interestedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "painPointCount": "학습 포인트 {count}",
+  "@painPointCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "privacyBody1": "근육 학습 지도는 사용자가 입력한 학습 노트 이름, 근육 학습 표시, 학습 포인트와 기록 시각을 앱 기능 제공을 위해 사용합니다.",
+  "privacyBody2": "이 정보는 사용자의 기기에만 저장됩니다. 개발자 서버로 전송하거나 제3자와 공유하지 않으며, 광고 또는 분석 목적으로 사용하지 않습니다.",
+  "privacyBody3": "앱을 삭제하면 기기에 저장된 정보도 함께 삭제됩니다. 문의: mkael0316@gmail.com",
+  "privacyBody4": "이 앱은 인체 근육의 위치와 명칭을 익히기 위한 교육용 도구입니다.",
+  "privacyEffectiveDate": "시행일: {date}",
+  "@privacyEffectiveDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ok": "확인"
+}
