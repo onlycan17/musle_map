@@ -5,9 +5,20 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val uploadStoreFile = providers.environmentVariable("MUSCLE_MAP_UPLOAD_STORE_FILE").orNull
+val uploadStorePassword = providers.environmentVariable("MUSCLE_MAP_UPLOAD_STORE_PASSWORD").orNull
+val uploadKeyAlias = providers.environmentVariable("MUSCLE_MAP_UPLOAD_KEY_ALIAS").orNull
+val uploadKeyPassword = providers.environmentVariable("MUSCLE_MAP_UPLOAD_KEY_PASSWORD").orNull
+val releaseSigningConfigured = listOf(
+    uploadStoreFile,
+    uploadStorePassword,
+    uploadKeyAlias,
+    uploadKeyPassword,
+).all { !it.isNullOrBlank() }
+
 android {
     namespace = "com.musle.musle_map"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -20,22 +31,45 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.musle.musle_map"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                storeFile = file(uploadStoreFile!!)
+                storePassword = uploadStorePassword
+                keyAlias = uploadKeyAlias
+                keyPassword = uploadKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (releaseSigningConfigured) {
+                signingConfigs.getByName("release")
+            } else {
+                null
+            }
         }
+    }
+}
+
+gradle.taskGraph.whenReady {
+    val needsReleaseSigning = allTasks.any {
+        it.name == "bundleRelease" || it.name == "assembleRelease"
+    }
+    if (needsReleaseSigning && !releaseSigningConfigured) {
+        throw GradleException(
+            "Release signing is not configured. Set the MUSCLE_MAP_UPLOAD_* environment variables.",
+        )
     }
 }
 
