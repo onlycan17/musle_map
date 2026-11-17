@@ -32,6 +32,33 @@
 
 모든 학습 노트는 사용자의 기기에만 저장되며 개발자 서버로 전송되지 않습니다.
 
+## 영어 등록정보(`en-US`)
+
+- 앱 이름: Muscle Study Map
+- 그래픽 자료는 기본 언어(한국어) 자료를 그대로 사용
+
+### Short description
+
+Learn where muscles are and what they're called, and add study points to charts.
+
+### Full description
+
+Muscle Study Map is an anatomy learning app that helps you learn the location and names of muscles using front and back body charts.
+
+Mark muscles you have learned in blue and muscles you want to review in red. Add study points anywhere on the chart, keep study notes by topic, and save study history to compare with or restore earlier records.
+
+Key features
+
+- Switch between front and back muscle charts
+- Mark learned and interested muscles separately
+- Add study point notes on the chart
+- Manage study notes by topic
+- Save, compare, and restore study history
+- Works offline
+- No ads or analytics
+
+All study notes are stored only on your device and are never sent to the developer's servers.
+
 ## 앱 콘텐츠 선언 근거
 
 - 광고: 없음
