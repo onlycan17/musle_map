@@ -34,9 +34,11 @@ String _toolLabel(AppLocalizations l10n, MarkTool tool) => switch (tool) {
   MarkTool.painPoint => l10n.toolPainPoint,
 };
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final ProfileStore _profileStore = ProfileStore();
 
+  // 홈 화면 진입 스태거 애니메이션(프로필 로드 완료 후 1회 재생).
+  late final AnimationController _entryController;
   AppLocalizations get _l10n => AppLocalizations.of(context)!;
   late final Map<BodyView, BodyViewConfig> _configs;
   final Map<BodyView, ui.Image?> _images = {};
@@ -59,6 +61,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 640),
+    );
     _configs = {
       BodyView.front: buildFrontViewConfig(),
       BodyView.back: buildBackViewConfig(),
@@ -124,6 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
           : profiles.first.id;
       _loadingProfiles = false;
     });
+    _entryController.forward(from: 0);
     _pruneUnknownRegionMarks();
     unawaited(_refreshAllOverlays());
   }
@@ -611,6 +618,17 @@ class _HomeScreenState extends State<HomeScreen> {
       );
   }
 
+  CurvedAnimation _entrance(double begin, double end) => CurvedAnimation(
+    parent: _entryController,
+    curve: Interval(begin, end, curve: Curves.easeOutCubic),
+  );
+
+  @override
+  void dispose() {
+    _entryController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final profile = _selectedProfile;
@@ -701,7 +719,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(children: _buildControlWidgets(profile)),
               ),
             ),
-            Expanded(child: _BodyStage(child: _buildBody())),
+            Expanded(
+              child: _EntranceFader(
+                animation: _entrance(0.2, 0.8),
+                offsetDy: 0.02,
+                child: _BodyStage(child: _buildBody()),
+              ),
+            ),
             _buildInfoBar(tapRef),
           ],
         );
@@ -743,13 +767,17 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 16, 12),
-            child: _BodyStage(
-              key: const ValueKey('tablet_body_stage'),
-              margin: EdgeInsets.zero,
-              borderRadius: 24,
-              child: _buildBody(),
+          child: _EntranceFader(
+            animation: _entrance(0.2, 0.8),
+            offsetDy: 0.02,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 16, 12),
+              child: _BodyStage(
+                key: const ValueKey('tablet_body_stage'),
+                margin: EdgeInsets.zero,
+                borderRadius: 24,
+                child: _buildBody(),
+              ),
             ),
           ),
         ),
@@ -759,60 +787,76 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Widget> _buildControlWidgets(UserBodyProfile? profile) {
     return [
-      _AppHeader(
-        currentView: _currentView,
-        totalMarkCount: _totalMarkCount,
-        calibrationMode: _calibrationMode,
-        onToggleCalibration: () =>
-            setState(() => _calibrationMode = !_calibrationMode),
-        onResetCurrent: _resetCurrentView,
-        onResetAll: _resetAllViews,
-        onShowPrivacyPolicy: () => PrivacyPolicyDialog.show(context),
+      _EntranceFader(
+        animation: _entrance(0.0, 0.42),
+        child: _AppHeader(
+          currentView: _currentView,
+          totalMarkCount: _totalMarkCount,
+          calibrationMode: _calibrationMode,
+          onToggleCalibration: () =>
+              setState(() => _calibrationMode = !_calibrationMode),
+          onResetCurrent: _resetCurrentView,
+          onResetAll: _resetAllViews,
+          onShowPrivacyPolicy: () => PrivacyPolicyDialog.show(context),
+        ),
       ),
-      _ProfileBar(
-        profiles: _profiles,
-        selectedProfile: profile,
-        baselineSnapshot: _baselineSnapshot,
-        onProfileChanged: _selectProfile,
-        onEditProfile: _showEditUserDialog,
-        onAddProfile: _showAddUserDialog,
-        onSaveSnapshot: _saveCurrentSnapshot,
-        onShowHistory: _showHistorySheet,
-        onClearBaseline: () {
-          setState(() => _baselineSnapshot = null);
-          unawaited(_refreshAllOverlays());
-        },
+      _EntranceFader(
+        animation: _entrance(0.12, 0.55),
+        child: _ProfileBar(
+          profiles: _profiles,
+          selectedProfile: profile,
+          baselineSnapshot: _baselineSnapshot,
+          onProfileChanged: _selectProfile,
+          onEditProfile: _showEditUserDialog,
+          onAddProfile: _showAddUserDialog,
+          onSaveSnapshot: _saveCurrentSnapshot,
+          onShowHistory: _showHistorySheet,
+          onClearBaseline: () {
+            setState(() => _baselineSnapshot = null);
+            unawaited(_refreshAllOverlays());
+          },
+        ),
       ),
-      _ViewSwitcher(
-        currentView: _currentView,
-        markCounts: {
-          for (final v in BodyView.values) v: profile?.viewCount(v) ?? 0,
-        },
-        onChanged: (v) => setState(() => _currentView = v),
+      _EntranceFader(
+        animation: _entrance(0.24, 0.66),
+        child: _ViewSwitcher(
+          currentView: _currentView,
+          markCounts: {
+            for (final v in BodyView.values) v: profile?.viewCount(v) ?? 0,
+          },
+          onChanged: (v) => setState(() => _currentView = v),
+        ),
       ),
-      _MarkToolSwitcher(
-        selectedTool: _selectedTool,
-        weakCount: profile?.weakCount ?? 0,
-        releaseCount: profile?.releaseCount ?? 0,
-        painPointCount: profile?.painPointCount ?? 0,
-        onChanged: (tool) => setState(() => _selectedTool = tool),
+      _EntranceFader(
+        animation: _entrance(0.34, 0.75),
+        child: _MarkToolSwitcher(
+          selectedTool: _selectedTool,
+          weakCount: profile?.weakCount ?? 0,
+          releaseCount: profile?.releaseCount ?? 0,
+          painPointCount: profile?.painPointCount ?? 0,
+          onChanged: (tool) => setState(() => _selectedTool = tool),
+        ),
       ),
     ];
   }
 
   Widget _buildInfoBar(Offset? tapRef) {
-    return _InfoBar(
-      hasSelection: _lastTappedRegionIds[_currentView] != null,
-      selectedTool: _selectedTool,
-      muscleMarkType: _lastTappedMarkType,
-      regionInfo: _lastTappedRegionInfo,
-      lastTapRef: tapRef,
-      weakCount: _currentWeakCount,
-      releaseCount: _currentReleaseCount,
-      painPointCount: _currentPainPointCount,
-      totalMarkCount: _totalMarkCount,
-      showCoords: _calibrationMode,
-      isComparing: _baselineSnapshot != null,
+    return _EntranceFader(
+      animation: _entrance(0.44, 0.85),
+      offsetDy: 0.04,
+      child: _InfoBar(
+        hasSelection: _lastTappedRegionIds[_currentView] != null,
+        selectedTool: _selectedTool,
+        muscleMarkType: _lastTappedMarkType,
+        regionInfo: _lastTappedRegionInfo,
+        lastTapRef: tapRef,
+        weakCount: _currentWeakCount,
+        releaseCount: _currentReleaseCount,
+        painPointCount: _currentPainPointCount,
+        totalMarkCount: _totalMarkCount,
+        showCoords: _calibrationMode,
+        isComparing: _baselineSnapshot != null,
+      ),
     );
   }
 
@@ -830,23 +874,29 @@ class _HomeScreenState extends State<HomeScreen> {
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTapDown: (details) => _handleTapDown(details, size),
-          child: CustomPaint(
-            size: size,
-            painter: BodyPainter(
-              config: _configs[_currentView]!,
-              bodyImage: _images[_currentView],
-              markOverlayImage: _markOverlayImages[_currentView],
-              baselineOverlayImage: _baselineOverlayImages[_currentView],
-              painPoints: List<BodyPainPoint>.of(
-                _selectedProfile?.painPoints[_currentView] ?? const [],
+          // 이미지 로드가 끝나면 페이드 인 — 갑작스러운 등장을 부드럽게.
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            opacity: _images[_currentView] != null ? 1.0 : 0.0,
+            child: CustomPaint(
+              size: size,
+              painter: BodyPainter(
+                config: _configs[_currentView]!,
+                bodyImage: _images[_currentView],
+                markOverlayImage: _markOverlayImages[_currentView],
+                baselineOverlayImage: _baselineOverlayImages[_currentView],
+                painPoints: List<BodyPainPoint>.of(
+                  _selectedProfile?.painPoints[_currentView] ?? const [],
+                ),
+                baselinePainPoints: List<BodyPainPoint>.of(
+                  _baselineSnapshot?.painPoints[_currentView] ?? const [],
+                ),
+                calibrationMode: _calibrationMode,
+                lastTapPoint: _calibrationMode
+                    ? _lastTapRefPoint[_currentView]
+                    : null,
               ),
-              baselinePainPoints: List<BodyPainPoint>.of(
-                _baselineSnapshot?.painPoints[_currentView] ?? const [],
-              ),
-              calibrationMode: _calibrationMode,
-              lastTapPoint: _calibrationMode
-                  ? _lastTapRefPoint[_currentView]
-                  : null,
             ),
           ),
         );
@@ -1715,6 +1765,13 @@ class _InfoBar extends StatelessWidget {
             return latin == null ? mark : '$latin · $mark';
           }()
         : l10n.tapToMark(_toolLabel(l10n, selectedTool));
+    final title = hasSelection
+        ? (regionInfo == null || regionInfo!.$1.isEmpty
+              ? l10n.selectedRegion
+              : regionInfo!.$1)
+        : hasPainPointSelection
+        ? l10n.studyPointTitle
+        : l10n.pressToExplore;
 
     return Container(
       width: double.infinity,
@@ -1769,29 +1826,49 @@ class _InfoBar extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      hasSelection
-                          ? (regionInfo == null || regionInfo!.$1.isEmpty
-                                ? l10n.selectedRegion
-                                : regionInfo!.$1)
-                          : hasPainPointSelection
-                          ? l10n.studyPointTitle
-                          : l10n.pressToExplore,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        height: 1.08,
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeIn,
+                      layoutBuilder: (currentChild, previousChildren) => Stack(
+                        alignment: Alignment.centerLeft,
+                        children: [
+                          ...previousChildren,
+                          if (currentChild != null) currentChild,
+                        ],
+                      ),
+                      child: Text(
+                        title,
+                        key: ValueKey(title),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          height: 1.08,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 5),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF7B625D),
-                        fontWeight: FontWeight.w600,
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeIn,
+                      layoutBuilder: (currentChild, previousChildren) => Stack(
+                        alignment: Alignment.centerLeft,
+                        children: [
+                          ...previousChildren,
+                          if (currentChild != null) currentChild,
+                        ],
+                      ),
+                      child: Text(
+                        subtitle,
+                        key: ValueKey(subtitle),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFF7B625D),
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     if (showCoords && lastTapRef != null) ...[
@@ -1907,39 +1984,71 @@ class _MarkBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     return Container(
-      constraints: const BoxConstraints(minWidth: 70),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      constraints: const BoxConstraints(minWidth: 96),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: total > 0 ? const Color(0xFF2B1D1B) : const Color(0xFFFFF4F1),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Column(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            '$weakCount/$releaseCount/$painPointCount',
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: total > 0 ? Colors.white : const Color(0xFF8A6B65),
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
+          _BadgeCount(
+            color: const Color(0xFF2577D9),
+            count: weakCount,
+            bright: total > 0,
           ),
-          const SizedBox(height: 3),
-          Text(
-            l10n.badgeSummary,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: total > 0
-                  ? Colors.white.withValues(alpha: 0.88)
-                  : const Color(0xFF8A6B65),
-              fontWeight: FontWeight.w800,
-              height: 1,
-            ),
+          const SizedBox(width: 10),
+          _BadgeCount(
+            color: const Color(0xFFFF8A80),
+            count: releaseCount,
+            bright: total > 0,
+          ),
+          const SizedBox(width: 10),
+          _BadgeCount(
+            color: const Color(0xFFFFB3AB),
+            count: painPointCount,
+            bright: total > 0,
           ),
         ],
       ),
+    );
+  }
+}
+
+class _BadgeCount extends StatelessWidget {
+  const _BadgeCount({
+    required this.color,
+    required this.count,
+    required this.bright,
+  });
+
+  final Color color;
+  final int count;
+  final bool bright;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '$count',
+          style: theme.textTheme.titleSmall?.copyWith(
+            color: bright ? Colors.white : const Color(0xFF8A6B65),
+            fontWeight: FontWeight.w900,
+            height: 1,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1948,4 +2057,30 @@ String _formatDateTime(DateTime value) {
   String two(int number) => number.toString().padLeft(2, '0');
   return '${value.year}.${two(value.month)}.${two(value.day)} '
       '${two(value.hour)}:${two(value.minute)}';
+}
+
+class _EntranceFader extends StatelessWidget {
+  const _EntranceFader({
+    required this.animation,
+    required this.child,
+    this.offsetDy = 0.03,
+  });
+
+  final Animation<double> animation;
+  final double offsetDy;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: animation,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: Offset(0, offsetDy),
+          end: Offset.zero,
+        ).animate(animation),
+        child: child,
+      ),
+    );
+  }
 }
